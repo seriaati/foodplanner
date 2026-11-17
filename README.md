@@ -6,6 +6,10 @@ A client-side Forge 1.20.1 mod for the [Craft to Exile 2 modpack](https://www.cu
 | --- | --- |
 | ![Can make tab](docs/can-make.png) | ![Missing 1-2 tab](docs/missing.png) |
 
+## Download
+
+**[Download the latest build (foodplanner.jar)](https://github.com/seriaati/foodplanner/releases/latest/download/foodplanner.jar)**, rebuilt on every push to `master`. Drop it into your instance's `mods` folder.
+
 ## Features
 
 - **Can make**: every food you can cook right now, including meals that take up to 3 steps (for example flour, then dough, then pasta). Hover the gold `+N` next to the station to see the steps.
