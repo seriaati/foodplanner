@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -25,3 +27,14 @@ jobs:
         with:
           name: foodplanner
           path: build/libs/*.jar
+
+      - name: Publish rolling "latest" release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/libs/foodplanner-*.jar foodplanner.jar
+          git tag -f latest
+          git push -f origin refs/tags/latest
+          gh release view latest >/dev/null 2>&1 || gh release create latest --title "Latest build" --notes "Built automatically from the latest commit on master." --latest
+          gh release upload latest foodplanner.jar --clobber
