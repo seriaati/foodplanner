@@ -40,7 +40,7 @@ final class FoodFinder {
     static Results find(Player player, List<ItemStack> available) {
         long start = System.nanoTime();
         RegistryAccess registryAccess = player.level().registryAccess();
-        Collection<Recipe<?>> recipes = player.level().getRecipeManager().getRecipes();
+        List<Recipe<?>> recipes = ModdedRecipes.collect(player);
 
         Map<Item, List<Recipe<?>>> producers = new HashMap<>();
         for (Recipe<?> r : recipes) {
@@ -227,6 +227,7 @@ final class FoodFinder {
     }
 
     static String stationName(Recipe<?> recipe) {
+        if (recipe instanceof ModdedRecipes.Derived d) return d.station();
         ResourceLocation id = ForgeRegistries.RECIPE_TYPES.getKey(recipe.getType());
         if (id == null) return "?";
         return switch (id.toString()) {
