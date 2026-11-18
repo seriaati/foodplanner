@@ -27,7 +27,7 @@ import java.util.*;
 
 /**
  * Rewrites food sources the planner can't read from plain recipes into recipes with real ingredients and results.
- * Cuisine Delight, Brewin' and Chewin' and Farmer's Respite are read via reflection so they stay optional.
+ * Cuisine Delight, Brewin' and Chewin', Farmer's Respite and Mine and Slash are read via reflection so they stay optional.
  */
 final class ModdedRecipes {
     record Derived(ResourceLocation id, ItemStack result, NonNullList<Ingredient> needs, String station) implements Recipe<Container> {
@@ -95,6 +95,7 @@ final class ModdedRecipes {
         }
         addFeasts(recipes);
         addCheeseAging(recipes);
+        addMineAndSlashCooking(recipes, player);
         return recipes;
     }
 
@@ -155,6 +156,43 @@ final class ModdedRecipes {
             Item ripe = ForgeRegistries.ITEMS.getValue(new ResourceLocation(id.getNamespace(), id.getPath().substring("unripe_".length())));
             if (ripe == null || ripe == Items.AIR) continue;
             recipes.add(new Derived(id.withSuffix("/aging"), new ItemStack(ripe), NonNullList.of(Ingredient.EMPTY, Ingredient.of(item)), "Aging"));
+        }
+    }
+
+    // Mine and Slash cooking runs at its own station from a database synced on login, not from vanilla recipes.
+    // Each tier needs a minimum cooking level, so tiers above the player's level are left out.
+    private static void addMineAndSlashCooking(List<Recipe<?>> recipes, Player player) {
+        Object db;
+        try {
+            db = Class.forName("com.robertx22.mine_and_slash.database.registry.ExileDB").getMethod("Recipes").invoke(null);
+        } catch (ReflectiveOperationException | LinkageError e) {
+            return;
+        }
+        if (!(call(db, "getList") instanceof List<?> list)) return;
+        int level = cookingLevel(player);
+        for (Object r : list) {
+            if (!"cooking".equals(field(r, "profession")) || Boolean.TRUE.equals(field(r, "requires_pinnacle_unlock"))) continue;
+            if (call(r, "getLevelRequirement") instanceof Integer required && required > level) continue;
+            if (!(call(r, "toResultStackForJei") instanceof ItemStack result) || result.isEmpty()) continue;
+            if (!(call(r, "getMaterials") instanceof List<?> mats)) continue;
+            NonNullList<Ingredient> needs = NonNullList.create();
+            for (Object mat : mats) {
+                if (!(mat instanceof ItemStack stack) || stack.isEmpty()) continue;
+                Ingredient ing = Ingredient.of(stack.getItem());
+                for (int i = 0; i < stack.getCount(); i++) needs.add(ing);
+            }
+            if (needs.isEmpty() || !(field(r, "id") instanceof String id)) continue;
+            recipes.add(new Derived(new ResourceLocation("mmorpg", "profession/" + id), result.copyWithCount(1), needs, "Cooking Station"));
+        }
+    }
+
+    private static int cookingLevel(Player player) {
+        try {
+            Object data = Class.forName("com.robertx22.mine_and_slash.uncommon.datasaving.Load").getMethod("player", Player.class).invoke(null, player);
+            Object professions = field(data, "professions");
+            return (int) professions.getClass().getMethod("getLevel", String.class).invoke(professions, "cooking");
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+            return Integer.MAX_VALUE;
         }
     }
 
